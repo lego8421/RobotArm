@@ -4,9 +4,30 @@
 #include <Eigen/Dense>
 #include <vector>
 #include <array>
+#include <cmath>
 
 
 class RobotKinematics {
+public:
+    static constexpr double DEG2RAD = M_PI / 180.0;
+    static constexpr double RAD2DEG = 180.0 / M_PI;
+
+    static std::vector<double> toDegree(const std::vector<double> q) {
+        std::vector<double> result;
+        for (auto rad : q) {
+            result.push_back(rad * RAD2DEG);
+        }
+        return result;
+    }
+
+    static std::vector<double> toRadian(const std::vector<double> q) {
+        std::vector<double> result;
+        for (auto deg : q) {
+            result.push_back(deg * DEG2RAD);
+        }
+        return result;
+    }
+
 public:
     RobotKinematics(std::size_t dof);
 
@@ -17,7 +38,9 @@ public:
 
     std::vector<double> forwardKinematics(std::vector<double> q);
     std::vector<double> inverseDifferentialKinematics(std::vector<double> xd, double sigma);
-
+    static std::vector<double> getPoseError(const std::vector<double> desired, const std::vector<double> measured);
+    static std::vector<double> getOrientationError(const Eigen::MatrixXd desired, const Eigen::MatrixXd measured);
+    static Eigen::MatrixXd rpyToRotation(const std::vector<double> rpy);
 
 private:
     Eigen::MatrixXd transformationMatrix(std::size_t jointIndex);

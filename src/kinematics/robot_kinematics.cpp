@@ -54,6 +54,60 @@ std::vector<double> RobotKinematics::inverseDifferentialKinematics(std::vector<d
     return qd;
 }
 
+std::vector<double> RobotKinematics::getPoseError(const std::vector<double> desired, const std::vector<double> measured) {
+    std::vector<double> error(6);
+
+    // position error
+    for(std::size_t i = 0; i < 3; i++) {
+        error[i] = desired[i] - measured[i];
+    }
+
+    // orientation error
+    Eigen::MatrixXd desiredRotation = rpyToRotation(std::vector<double>(desired.begin(), desired.begin() + 3));
+    Eigen::MatrixXd measuredRotation = rpyToRotation(std::vector<double>(measured.begin(), measured.begin() + 3));
+    std::vector<double> orientationError = getOrientationError(desiredRotation, measuredRotation);
+
+    for(std::size_t i = 0; i < 3; i++) {
+        error[i + 3] = orientationError[i];
+    }
+
+    return error;
+}
+
+std::vector<double> RobotKinematics::getOrientationError(const Eigen::MatrixXd desired, const Eigen::MatrixXd measured) {
+    std::vector<double> error(3);
+    double rotation[3][3];
+    rotation[0][0] = desired(0, 0) * measured(0, 0) + desired(0, 1) * measured(0, 1) + desired(0, 2) * measured(0, 2);
+    rotation[1][0] = desired(1, 0) * measured(0, 0) + desired(1, 1) * measured(0, 1) + desired(1, 2) * measured(0, 2);
+    rotation[2][0] = desired(2, 0) * measured(0, 0) + desired(2, 1) * measured(0, 1) + desired(2, 2) * measured(0, 2);
+    rotation[2][1] = desired(2, 0) * measured(1, 0) + desired(2, 1) * measured(1, 1) + desired(2, 2) * measured(1, 2);
+    rotation[2][2] = desired(2, 0) * measured(2, 0) + desired(2, 1) * measured(2, 1) + desired(2, 2) * measured(2, 2);
+
+    error[0] = atan2(rotation[2][1], rotation[2][2]);
+    error[1] = atan2(-rotation[2][0], sqrt(rotation[2][1] * rotation[2][1] + rotation[2][2] * rotation[2][2]));
+    error[2] = atan2(rotation[1][0], rotation[0][0]);
+
+    return error;
+}
+
+Eigen::MatrixXd RobotKinematics::rpyToRotation(const std::vector<double> rpy) {
+    Eigen::MatrixXd rotation(3, 3);
+
+    rotation(0, 0) =  cos(rpy[2]) * cos(rpy[1]);
+    rotation(0, 1) =  cos(rpy[2]) * sin(rpy[1]) * sin(rpy[0]) - sin(rpy[2]) * cos(rpy[0]);
+    rotation(0, 2) =  cos(rpy[2]) * sin(rpy[1]) * cos(rpy[0]) + sin(rpy[2]) * sin(rpy[0]);
+
+    rotation(1, 0) =  sin(rpy[2]) * cos(rpy[1]);
+    rotation(1, 1) =  sin(rpy[2]) * sin(rpy[1]) * sin(rpy[0]) + cos(rpy[2]) * cos(rpy[0]);
+    rotation(1, 2) =  sin(rpy[2]) * sin(rpy[1]) * cos(rpy[0]) - cos(rpy[2]) * sin(rpy[0]);
+
+    rotation(2, 0) = -sin(rpy[1]);
+    rotation(2, 1) =  cos(rpy[1]) * sin(rpy[0]);
+    rotation(2, 2) =  0;
+
+    return rotation;
+}
+
 Eigen::MatrixXd RobotKinematics::transformationMatrix(std::size_t jointIndex) {
     double sinQ = sin(q_[jointIndex]);
     double cosQ = cos(q_[jointIndex]);

@@ -14,34 +14,34 @@ MainWindow::MainWindow(QWidget *parent) :
 
     RobotKinematics kinematics(6);
 
-    std::vector<std::array<double, 4>> DH(6);
+    std::vector<RobotKinematics::DhParameter> dh(6);
 
-    DH[0][0] =  M_PI / 2.0;
-    DH[0][1] =  0.0;
-    DH[0][2] =  0.3165;
-    DH[0][3] =  0.0;
-    DH[1][0] =  0.0;
-    DH[1][1] =  0.661;
-    DH[1][2] =  0.0;
-    DH[1][3] =  0.0;
-    DH[2][0] =  M_PI / 2.0;
-    DH[2][1] =  0.0;
-    DH[2][2] =  0.021;
-    DH[2][3] =  0.0;
-    DH[3][0] = -M_PI / 2.0;
-    DH[3][1] =  0.0;
-    DH[3][2] =  0.533;
-    DH[3][3] =  0.0;
-    DH[4][0] =  M_PI / 2.0;
-    DH[4][1] =  0.0;
-    DH[4][2] = -0.123;
-    DH[4][3] =  0.0;
-    DH[5][0] =  0.0;
-    DH[5][1] =  0.0;
-    DH[5][2] =  0.077;
-    DH[5][3] =  0.0;
+    dh[0].alpha = M_PI / 2.0;
+    dh[0].a = 0.0;
+    dh[0].d = 0.3165;
+    dh[0].theta = 0.0;
+    dh[1].alpha =  0.0;
+    dh[1].a =  0.661;
+    dh[1].d =  0.0;
+    dh[1].theta =  0.0;
+    dh[2].alpha =  M_PI / 2.0;
+    dh[2].a =  0.0;
+    dh[2].d =  0.021;
+    dh[2].theta =  0.0;
+    dh[3].alpha = -M_PI / 2.0;
+    dh[3].a =  0.0;
+    dh[3].d =  0.533;
+    dh[3].theta =  0.0;
+    dh[4].alpha =  M_PI / 2.0;
+    dh[4].a =  0.0;
+    dh[4].d = -0.123;
+    dh[4].theta =  0.0;
+    dh[5].alpha =  0.0;
+    dh[5].a =  0.0;
+    dh[5].d =  0.077;
+    dh[5].theta =  0.0;
 
-    kinematics.setDH(DH);
+    kinematics.setDH(dh);
 
     std::vector<double> q = RobotKinematics::toRadian({
         30.2127,
@@ -58,7 +58,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     qDebug() << "forward" << q << "to" << x;
 
-    std::vector<double> initQ = RobotKinematics::toRadian({
+    std::vector<double> init_q = RobotKinematics::toRadian({
         0.0,
         60.0,
         30.0,
@@ -66,25 +66,25 @@ MainWindow::MainWindow(QWidget *parent) :
         0.0,
         0.0
     });
-    std::vector<double> targetX = {0.50855, 0.1295, 0.97869, 0, 0, 0};
-    std::vector<double> currentQ = initQ;
+    std::vector<double> target_x = {0.50855, 0.1295, 0.97869, 0, 0, 0};
+    std::vector<double> current_q = init_q;
 
-    kinematics.setQ(initQ);
+    kinematics.setQ(init_q);
     while(true) {
-        std::vector<double> currentX = kinematics.forwardKinematics(currentQ);
-        std::vector<double> error = kinematics.getPoseError(targetX, currentX);
-        std::vector<double> inputXd(6);
+        std::vector<double> current_x = kinematics.forwardKinematics(current_q);
+        std::vector<double> error = kinematics.getPoseError(target_x, current_x);
+        std::vector<double> input_xd(6);
         double kp = 100.0;
 
         for (std::size_t i = 0; i < 6; i++) {
-            error[i] = targetX[i] - currentX[i];
-            inputXd[i] = 0 + kp * error[i];
+            error[i] = target_x[i] - current_x[i];
+            input_xd[i] = 0 + kp * error[i];
         }
 
-        std::vector<double> qd = kinematics.inverseDifferentialKinematics(inputXd, 0.001);
+        std::vector<double> qd = kinematics.inverseDifferentialKinematics(input_xd, 0.001);
 
         for (std::size_t i = 0; i < 6; i++) {
-            currentQ[i] += qd[i] * 0.001;
+            current_q[i] += qd[i] * 0.001;
         }
 
         double rms = 0.0;
@@ -97,7 +97,7 @@ MainWindow::MainWindow(QWidget *parent) :
         }
     }
 
-    qDebug() << "inverse" << targetX << "to" << currentQ;
+    qDebug() << "inverse" << target_x << "to" << RobotKinematics::toDegree(current_q);
 }
 
 MainWindow::~MainWindow() {

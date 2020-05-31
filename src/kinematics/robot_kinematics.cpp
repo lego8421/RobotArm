@@ -4,12 +4,12 @@
 
 
 RobotKinematics::RobotKinematics(std::size_t dof)
-    : DOF(dof) {
+    : dof_(dof) {
 
-    q_.resize(DOF);
+    q_.resize(dof_);
 }
 
-void RobotKinematics::setDH(std::vector<std::array<double, 4>> dh) {
+void RobotKinematics::setDH(std::vector<DhParameter> dh) {
     dh_ = dh;
 }
 
@@ -36,19 +36,19 @@ std::vector<double> RobotKinematics::forwardKinematics(std::vector<double> q) {
 }
 
 std::vector<double> RobotKinematics::inverseDifferentialKinematics(std::vector<double> xd, double sigma) {
-    std::vector<double> qd(DOF);
+    std::vector<double> qd(dof_);
 
-    Eigen::MatrixXd geometryJacobian = calculateGeometryJacobian();
+    Eigen::MatrixXd geometry_jacobian = calculateGeometryJacobian();
 
-    Eigen::VectorXd xdVector(6);
+    Eigen::VectorXd xd_vector(6);
     for (std::size_t i = 0; i < 6; i++) {
-        xdVector[i] = xd[i];
+        xd_vector[i] = xd[i];
     }
 
-    Eigen::VectorXd qdVector = calculateInverseDLS(geometryJacobian, sigma) * xdVector;
+    Eigen::VectorXd qd_vector = calculateInverseDLS(geometry_jacobian, sigma) * xd_vector;
 
-    for (std::size_t i = 0; i < DOF; i++) {
-        qd[i] = qdVector[i];
+    for (std::size_t i = 0; i < dof_; i++) {
+        qd[i] = qd_vector[i];
     }
 
     return qd;
@@ -63,12 +63,12 @@ std::vector<double> RobotKinematics::getPoseError(const std::vector<double> desi
     }
 
     // orientation error
-    Eigen::MatrixXd desiredRotation = rpyToRotation(std::vector<double>(desired.begin(), desired.begin() + 3));
-    Eigen::MatrixXd measuredRotation = rpyToRotation(std::vector<double>(measured.begin(), measured.begin() + 3));
-    std::vector<double> orientationError = getOrientationError(desiredRotation, measuredRotation);
+    Eigen::MatrixXd desired_rotation = rpyToRotation(std::vector<double>(desired.begin() + 3, desired.end()));
+    Eigen::MatrixXd measured_rotation = rpyToRotation(std::vector<double>(measured.begin() + 3, measured.end()));
+    std::vector<double> orientation_error = getOrientationError(desired_rotation, measured_rotation);
 
     for(std::size_t i = 0; i < 3; i++) {
-        error[i + 3] = orientationError[i];
+        error[i + 3] = orientation_error[i];
     }
 
     return error;
@@ -111,26 +111,26 @@ Eigen::MatrixXd RobotKinematics::rpyToRotation(const std::vector<double> rpy) {
 Eigen::MatrixXd RobotKinematics::transformationMatrix(std::size_t jointIndex) {
     double sinQ = sin(q_[jointIndex]);
     double cosQ = cos(q_[jointIndex]);
-    double sinAlpha = sin(dh_[jointIndex][0]);
-    double cosAlpha = cos(dh_[jointIndex][0]);
-    double a = dh_[jointIndex][1];
-    double d = dh_[jointIndex][2];
+    double sin_alpha = sin(dh_[jointIndex].alpha);
+    double cos_alpha = cos(dh_[jointIndex].alpha);
+    double a = dh_[jointIndex].a;
+    double d = dh_[jointIndex].d;
 
     Eigen::MatrixXd t(4, 4);
 
     t(0, 0) = cosQ;
-    t(0, 1) = -sinQ * cosAlpha;
-    t(0, 2) = sinQ * sinAlpha;
+    t(0, 1) = -sinQ * cos_alpha;
+    t(0, 2) = sinQ * sin_alpha;
     t(0, 3) = a * cosQ;
 
     t(1, 0) = sinQ;
-    t(1, 1) = cosQ * cosAlpha;
-    t(1, 2) = -cosQ * sinAlpha;
+    t(1, 1) = cosQ * cos_alpha;
+    t(1, 2) = -cosQ * sin_alpha;
     t(1, 3) = a * sinQ;
 
     t(2, 0) = 0;
-    t(2, 1) = sinAlpha;
-    t(2, 2) = cosAlpha;
+    t(2, 1) = sin_alpha;
+    t(2, 2) = cos_alpha;
     t(2, 3) = d;
 
     t(3, 0) = 0;
@@ -143,7 +143,7 @@ Eigen::MatrixXd RobotKinematics::transformationMatrix(std::size_t jointIndex) {
 
 Eigen::MatrixXd RobotKinematics::transformationMatrix() {
     Eigen::MatrixXd t = transformationMatrix(0);
-    for (std::size_t i = 1; i < DOF; i++) {
+    for (std::size_t i = 1; i < dof_; i++) {
         t = t * transformationMatrix(i);
     }
     return t;
@@ -176,10 +176,10 @@ Eigen::MatrixXd RobotKinematics::calculateInverseDLS(Eigen::MatrixXd matrix, dou
 }
 
 Eigen::MatrixXd RobotKinematics::calculateGeometryJacobian() {
-    Eigen::MatrixXd geometryJacobian(6, DOF);
-    Eigen::MatrixXd t[DOF];
+    Eigen::MatrixXd geometry_jacobian(6, dof_);
+    Eigen::MatrixXd t[dof_];
 
-    for (std::size_t i = 0; i < DOF; i++) {
+    for (std::size_t i = 0; i < dof_; i++) {
         if (i == 0) {
             t[i] = transformationMatrix(i);
         } else {
@@ -189,29 +189,29 @@ Eigen::MatrixXd RobotKinematics::calculateGeometryJacobian() {
 
     Eigen::Vector3d p;
     for (std::size_t i = 0; i < 3; i++) {
-        p[i] = t[DOF - 1](i, 3);
+        p[i] = t[dof_ - 1](i, 3);
     }
 
-    for (std::size_t i = 0; i < DOF; i++) {
-        Eigen::Vector3d matZ;
-        Eigen::Vector3d matP;
+    for (std::size_t i = 0; i < dof_; i++) {
+        Eigen::Vector3d mat_z;
+        Eigen::Vector3d mat_p;
 
         if (i == 0) {
-            matZ = Eigen::Vector3d(0.0, 0.0, 1.0);
-            matP = Eigen::Vector3d(0.0, 0.0, 0.0);
+            mat_z = Eigen::Vector3d(0.0, 0.0, 1.0);
+            mat_p = Eigen::Vector3d(0.0, 0.0, 0.0);
         } else {
             for (int j = 0; j < 3; j++) {
-                matZ[j] = t[i - 1](j, 2);
-                matP[j] = t[i - 1](j, 3);
+                mat_z[j] = t[i - 1](j, 2);
+                mat_p[j] = t[i - 1](j, 3);
             }
         }
 
-        Eigen::Vector3d matZCross = matZ.cross(p - matP);
+        Eigen::Vector3d mat_z_cross = mat_z.cross(p - mat_p);
         for (int j = 0; j < 3; j++) {
-            geometryJacobian(j, i) = matZCross[j];
-            geometryJacobian(j + 3, i) = matZ[j];
+            geometry_jacobian(j, i) = mat_z_cross[j];
+            geometry_jacobian(j + 3, i) = mat_z[j];
         }
     }
 
-    return geometryJacobian;
+    return geometry_jacobian;
 }

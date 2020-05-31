@@ -28,11 +28,23 @@ public:
         return result;
     }
 
+    union DhParameter {
+        struct {
+            double a;
+            double alpha;
+            double d;
+            double theta;
+        };
+        struct {
+            double p[4];
+        };
+    };
+
 public:
     RobotKinematics(std::size_t dof);
 
 public:
-    void setDH(std::vector<std::array<double, 4>> dh);
+    void setDH(std::vector<DhParameter> dh);
 
     void setQ(std::vector<double> q);
 
@@ -43,7 +55,7 @@ public:
     static Eigen::MatrixXd rpyToRotation(const std::vector<double> rpy);
 
 private:
-    Eigen::MatrixXd transformationMatrix(std::size_t jointIndex);
+    Eigen::MatrixXd transformationMatrix(std::size_t joint_index);
     Eigen::MatrixXd transformationMatrix();
 
     Eigen::MatrixXd calculateInverse(Eigen::MatrixXd matrix);
@@ -51,8 +63,8 @@ private:
     Eigen::MatrixXd calculateGeometryJacobian();
 
 private:
-    const std::size_t DOF;
-    std::vector<std::array<double, 4>> dh_;
+    const std::size_t dof_;
+    std::vector<DhParameter> dh_;
 
     std::vector<double> q_;
 };
